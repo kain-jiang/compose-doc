@@ -1,0 +1,16 @@
+services:
+  dip-db-init:
+    build:
+      context: ../apps/dip-db-init
+    restart: "no"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_ROOT_USER: root
+      MYSQL_ROOT_PASSWORD: 123qweASD
+      APP_DATABASE: dip_demo
+      APP_USER: dip_user
+      APP_PASSWORD: dip_password

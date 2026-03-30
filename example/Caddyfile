@@ -4,8 +4,6 @@
 /core-services/core-app2/
 /api/dip-api/
 /dip/
-/dip-services/dip-app1/
-/dip-services/dip-app2/
 ` 200
 
   redir /core-services/core-app1 /core-services/core-app1/ 301
@@ -16,16 +14,6 @@
   redir /core-services/core-app2 /core-services/core-app2/ 301
   handle_path /core-services/core-app2/* {
     reverse_proxy core-app2:80
-  }
-
-  redir /dip-services/dip-app1 /dip-services/dip-app1/ 301
-  handle_path /dip-services/dip-app1/* {
-    reverse_proxy dip-app1:80
-  }
-
-  redir /dip-services/dip-app2 /dip-services/dip-app2/ 301
-  handle_path /dip-services/dip-app2/* {
-    reverse_proxy dip-app2:80
   }
 
   handle /api/dip-api/* {

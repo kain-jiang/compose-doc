@@ -4,12 +4,14 @@ import { onMounted, ref } from "vue";
 
 type ApiResponse = {
   app: string;
-  path: string;
-  full_path: string;
-  method: string;
-  query: Record<string, string>;
-  headers: Record<string, string>;
-  body: string;
+  database: string;
+  count: number;
+  messages: Array<{
+    id: number;
+    title: string;
+    content: string;
+    created_at: string;
+  }>;
 };
 
 const loading = ref(false);
@@ -21,11 +23,7 @@ async function loadDemo() {
   error.value = "";
 
   try {
-    const result = await fetch("/api/dip-api/demo?source=dip-web&lang=zh-CN", {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const result = await fetch("/api/dip-api/messages");
 
     if (!result.ok) {
       throw new Error(`Request failed with status ${result.status}`);
@@ -51,7 +49,8 @@ onMounted(() => {
       <h1>DIP Frontend Demo</h1>
       <p class="lead">
         根路由固定在 <code>/dip</code>，页面直接通过
-        <code>/api/dip-api</code> 访问独立的 DIP API 服务。
+        <code>/api/dip-api/messages</code> 读取 MySQL 中由
+        <code>dip-db-init</code> 初始化的演示数据。
       </p>
 
       <div class="actions">

@@ -5,6 +5,11 @@ services:
       - db-data:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=123qweASD
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
 volumes:
   db-data:

@@ -5,8 +5,7 @@ include:
   - data-services/kafka.yml
   - core-services/core-app1.yml
   - core-services/core-app2.yml
-  - dip-services/dip-app1.yml
-  - dip-services/dip-app2.yml
+  - dip-services/dip-db-init.yml
   - dip-services/dip-api.yml
   - dip-services/dip-web.yml
 
