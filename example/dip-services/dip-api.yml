@@ -1,5 +1,5 @@
 services:
-  router-app:
+  dip-api:
     build:
-      context: ../apps/router-app
+      context: ../apps/dip-api
     restart: unless-stopped

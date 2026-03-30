@@ -1,18 +1,18 @@
 from fastapi import FastAPI, Request
 
 
-app = FastAPI(title="router-app")
+app = FastAPI(title="dip-api")
 
 
 @app.get("/")
 def read_root() -> dict[str, object]:
     return {
-        "app": "router-app",
-        "message": "FastAPI catch-all demo service",
+        "app": "dip-api",
+        "message": "FastAPI catch-all demo service for DIP",
         "routes": [
             "/",
             "/healthz",
-            "/{path:path}",
+            "/api/dip-api/{path:path}",
         ],
     }
 
@@ -23,14 +23,15 @@ def healthcheck() -> dict[str, str]:
 
 
 @app.api_route(
-    "/{path:path}",
+    "/api/dip-api/{path:path}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
 )
 async def catch_all(path: str, request: Request) -> dict[str, object]:
     body = await request.body()
     return {
-        "app": "router-app",
+        "app": "dip-api",
         "path": path,
+        "full_path": f"/api/dip-api/{path}",
         "method": request.method,
         "query": dict(request.query_params),
         "headers": {

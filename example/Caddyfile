@@ -2,10 +2,10 @@
   respond / `available services:
 /core-services/core-app1/
 /core-services/core-app2/
+/api/dip-api/
 /dip/
 /dip-services/dip-app1/
 /dip-services/dip-app2/
-/router/router-app/
 ` 200
 
   redir /core-services/core-app1 /core-services/core-app1/ 301
@@ -28,21 +28,12 @@
     reverse_proxy dip-app2:80
   }
 
-  redir /dip /dip/ 301
-  handle /dip/api/* {
-    reverse_proxy router-app:80
+  handle /api/dip-api/* {
+    reverse_proxy dip-api:80
   }
+
+  redir /dip /dip/ 301
   handle /dip/* {
     reverse_proxy dip-web:80
-  }
-
-  # 自动移除前缀
-  handle_path /router/strip/* {
-    reverse_proxy router-app:80
-  }
-
-  # 保留前缀
-  handle /router/retain/* {
-    reverse_proxy router-app:80
   }
 }

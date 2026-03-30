@@ -5,6 +5,7 @@ import { onMounted, ref } from "vue";
 type ApiResponse = {
   app: string;
   path: string;
+  full_path: string;
   method: string;
   query: Record<string, string>;
   headers: Record<string, string>;
@@ -20,7 +21,7 @@ async function loadDemo() {
   error.value = "";
 
   try {
-    const result = await fetch("/dip/api/demo?source=dip-web&lang=zh-CN", {
+    const result = await fetch("/api/dip-api/demo?source=dip-web&lang=zh-CN", {
       headers: {
         "Content-Type": "application/json",
       },
@@ -50,7 +51,7 @@ onMounted(() => {
       <h1>DIP Frontend Demo</h1>
       <p class="lead">
         根路由固定在 <code>/dip</code>，页面直接通过
-        <code>/dip/api</code> 访问 router-app API。
+        <code>/api/dip-api</code> 访问独立的 DIP API 服务。
       </p>
 
       <div class="actions">
