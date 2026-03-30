@@ -7,6 +7,7 @@ include:
   - core-services/core-app2.yml
   - dip-services/dip-app1.yml
   - dip-services/dip-app2.yml
+  - router-services/router-app.yml
 
 services:
   gateway:

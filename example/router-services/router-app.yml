@@ -1,0 +1,5 @@
+services:
+  router-app:
+    build:
+      context: ../apps/router-app
+    restart: unless-stopped
