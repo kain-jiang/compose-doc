@@ -27,12 +27,12 @@
     reverse_proxy dip-app2:80
   }
 
-  // 自动移除前缀
+  # 自动移除前缀
   handle_path /router/strip/* {
     reverse_proxy router-app:80
   }
 
-  // 保留前缀
+  # 保留前缀
   handle /router/retain/* {
     reverse_proxy router-app:80
   }
