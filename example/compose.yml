@@ -1,0 +1,22 @@
+include:
+  - data-services/mysql.yml
+  - data-services/redis.yml
+  - data-services/opensearch.yml
+  - data-services/kafka.yml
+  - core-services/core-app1.yml
+  - core-services/core-app2.yml
+  - dip-services/dip-app1.yml
+  - dip-services/dip-app2.yml
+
+services:
+  nginx:
+    image: nginx
+    ports:
+      - "80:80"
+    configs:
+      - source: nginx-conf
+        target: /etc/nginx/nginx.conf
+
+configs:
+  nginx-conf:
+    file: ./nginx.conf
