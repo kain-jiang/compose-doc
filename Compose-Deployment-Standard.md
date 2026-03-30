@@ -67,6 +67,60 @@
 
 本文档仅约定服务目录分层，不对模块职责做进一步展开说明。
 
+### 5.3 K8s 到 Compose 的落地映射
+
+在标准化过程中，应按目标部署模型重新组织交付物，而不是将 Kubernetes 资源逐条翻译为 Compose 字段。
+
+内部统一按如下口径理解 `k8s -> compose`：
+
+| Kubernetes 常见对象/能力 | Compose 对应落地方式 | 示例 |
+| --- | --- | --- |
+| `Namespace` | 不单独映射。通过单套 `compose.yml` 及其目录边界组织部署单元 | `example/compose.yml` 聚合整套部署 |
+| `Deployment` | 一个长期运行的 `services.<name>` | `dip-services/dip-api.yml` 中的 `dip-api` |
+| `StatefulSet` | 一个有状态 `service` 加命名卷或宿主机目录挂载 | `data-services/mysql.yml` 中的 `mysql + db-data` |
+| `Job` / `Init Job` | 一次性运行服务，结合 `restart: "no"` 和依赖条件控制 | `dip-services/dip-db-init.yml` 中的 `dip-db-init` |
+| `ConfigMap` | 优先映射为 `configs` 或文件挂载；简单键值也可映射为 `environment` / `env_file` | `dip-services/dip-api.yml` 中的 `dip-api-config` |
+| `Secret` | 优先映射为宿主机只读文件挂载，或 Compose `secrets` | 本文档第 8 章统一约束 |
+| `Service`（集群内访问） | 直接使用 Compose 服务名进行容器间访问 | `dip-api` 通过 `mysql` 访问数据库 |
+| `Ingress` | 映射为统一入口代理服务，使用 `ports` 对外暴露 | `example/compose.yml` 中的 `gateway` |
+| `readinessProbe` / `livenessProbe` | 优先映射为 `healthcheck`；业务侧仍需保留重试与容错 | `data-services/mysql.yml` 中的 `healthcheck` |
+| `dependsOn` 类启动顺序诉求 | 使用 `depends_on`，必要时配合 `service_healthy`、`service_completed_successfully` | `dip-api` 依赖 `mysql` 与 `dip-db-init` |
+| `PersistentVolumeClaim` | 命名卷或宿主机目录挂载 | `db-data:/var/lib/mysql` |
+| 多副本与滚动发布 | 不作为 Compose 标准能力承诺，需在文档中明确降级处理 | 本文档第 11 章统一说明 |
+
+需要特别强调的转换原则如下：
+
+- Compose 映射的是“部署结果”，不是 Kubernetes 资源清单结构。
+- 不保留 `Deployment`、`Service`、`Ingress` 三件套式目录组织。
+- 不引入仅为贴近 Kubernetes 命名而存在的中间层抽象。
+- 若某项 Kubernetes 能力在 Compose 中无等价能力，应明确降级，而不是伪造等价实现。
+
+基于 `example` 中的示例，推荐按下面方式理解典型转换：
+
+```text
+K8s:
+  Deployment(dip-api)
+  Service(dip-api)
+  ConfigMap(dip-api-config)
+  Job(dip-db-init)
+  Deployment(dip-web)
+  Ingress(gateway)
+
+Compose:
+  compose.yml                 # 总装配与统一入口
+  dip-services/dip-api.yml   # 长期运行业务服务
+  dip-services/dip-db-init.yml # 一次性初始化任务
+  dip-services/dip-web.yml   # 前端服务
+  configs / environment      # 配置注入
+  gateway service            # 统一外部入口
+```
+
+因此，服务从 Kubernetes 接入 Compose 时，整理顺序应为：
+
+1. 先识别该服务在运行态上属于长期运行服务、一次性初始化任务，还是有状态依赖服务。
+2. 再确定其配置注入、数据持久化、健康检查和外部暴露方式。
+3. 最后按 `data-services`、`core-services`、`dip-services` 三层目录进行落盘，而不是按 Kubernetes 资源类型拆文件。
+
 ## 6. 标准目录结构
 
 内部统一采用如下标准目录结构：
