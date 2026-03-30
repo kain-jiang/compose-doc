@@ -9,14 +9,14 @@ include:
   - dip-services/dip-app2.yml
 
 services:
-  nginx:
-    image: nginx
+  gateway:
+    image: caddy:alpine
     ports:
       - "80:80"
     configs:
-      - source: nginx-conf
-        target: /etc/nginx/nginx.conf
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
 
 configs:
-  nginx-conf:
-    file: ./nginx.conf
+  caddyfile:
+    file: ./Caddyfile
