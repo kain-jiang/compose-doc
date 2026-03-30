@@ -1,0 +1,8 @@
+title: dip-api
+database:
+  host: mysql
+  port: 3306
+  user: dip_user
+  password: dip_password
+  database: dip_demo
+  charset: utf8mb4

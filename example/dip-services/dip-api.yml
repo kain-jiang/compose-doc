@@ -3,14 +3,23 @@ services:
     build:
       context: ../apps/dip-api
     restart: unless-stopped
+    configs:
+      - source: dip-api-config
+        target: /app/config.yaml
     depends_on:
       mysql:
         condition: service_healthy
       dip-db-init:
         condition: service_completed_successfully
-    environment:
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_USER: dip_user
-      MYSQL_PASSWORD: dip_password
-      MYSQL_DATABASE: dip_demo
+
+configs:
+  dip-api-config:
+    content: |
+      title: dip-api
+      database:
+        host: mysql
+        port: 3306
+        user: dip_user
+        password: dip_password
+        database: dip_demo
+        charset: utf8mb4
