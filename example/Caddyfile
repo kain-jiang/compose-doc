@@ -2,6 +2,7 @@
   respond / `available services:
 /core-services/core-app1/
 /core-services/core-app2/
+/dip/
 /dip-services/dip-app1/
 /dip-services/dip-app2/
 /router/router-app/
@@ -25,6 +26,14 @@
   redir /dip-services/dip-app2 /dip-services/dip-app2/ 301
   handle_path /dip-services/dip-app2/* {
     reverse_proxy dip-app2:80
+  }
+
+  redir /dip /dip/ 301
+  handle /dip/api/* {
+    reverse_proxy router-app:80
+  }
+  handle /dip/* {
+    reverse_proxy dip-web:80
   }
 
   # 自动移除前缀

@@ -1,0 +1,5 @@
+services:
+  dip-web:
+    build:
+      context: ../apps/dip-web
+    restart: unless-stopped
