@@ -6,6 +6,8 @@
 
 本文档主要面向内部各开发团队，同时可作为协作过程中的统一参考。
 
+本仓库中的 `example/` 目录为本文档标准的参考实现，用于展示标准目录、统一入口、配置注入、依赖编排和验证方式的落地写法。
+
 ## 2. 文档定位
 
 ### 2.1 说明目标
@@ -58,14 +60,21 @@
 
 标准架构为单机多容器部署架构。
 
-服务部分统一分为以下两类：
+服务目录统一分为以下三层：
 
+- `data-services`
 - `core-services`
 - `dip-services`
 
 ### 5.2 模块分层
 
 本文档仅约定服务目录分层，不对模块职责做进一步展开说明。
+
+其中各层统一理解如下：
+
+- `data-services`：数据库、缓存、消息队列、检索引擎等基础依赖服务。
+- `core-services`：平台内通用核心业务服务或公共能力服务。
+- `dip-services`：面向 DIP 场景的业务服务、前后端服务与初始化任务。
 
 ### 5.3 K8s 到 Compose 的落地映射
 
@@ -130,7 +139,7 @@ deploy/
   compose.yml
   .env
   .env.example
-  nginx.conf
+  Caddyfile
   data-services/
     mysql.yml
     redis.yml
@@ -168,6 +177,47 @@ deploy/
 
 ## 7. Compose 组织规范
 
+### 7.0 运行前提
+
+在采用本文档标准前，应先满足以下运行前提：
+
+- 使用支持 `include` 的 Docker Compose 版本。
+- 部署机需具备基础容器构建能力，能够完成业务镜像构建与 `docker compose` 编排执行。
+- 对包含数据库、消息中间件、检索引擎的示例或交付物，应预留足够的单机 CPU、内存和磁盘资源。
+- 对资源占用较高的服务，应在 Compose 中明确补充启动参数、健康检查和资源相关说明。
+
+对于 `example` 中的参考实现，还应明确以下事实：
+
+- 顶层编排依赖 `compose.yml` 的 `include` 聚合能力。
+- 统一入口默认示例采用 `Caddy`，对应配置文件为 `Caddyfile`。
+- `opensearch` 这类服务在单机场景下通常需要显式补充启动参数，例如 JVM 内存参数与健康检查。
+
+### 7.05 快速开始
+
+以仓库中的 `example/` 为例，可按以下步骤完成最小化验证：
+
+1. 进入 `example/` 所在目录对应的部署根目录。
+2. 执行 `docker compose -f example/compose.yml config` 完成静态校验。
+3. 执行 `docker compose -f example/compose.yml up -d` 启动整套示例服务。
+4. 打开 `http://localhost/dip/` 查看前端演示页面。
+5. 访问 `http://localhost/api/dip-api/dependencies` 查看后端依赖检查结果。
+
+若需要清理示例环境，可执行：
+
+```bash
+docker compose -f example/compose.yml down
+```
+
+### 7.06 快速验证
+
+`example/` 参考实现至少应满足以下快速验证结果：
+
+- `docker compose -f example/compose.yml config` 可成功输出合并后的配置。
+- `docker compose -f example/compose.yml up -d` 后各核心容器可正常启动。
+- `http://localhost/dip/` 可打开前端页面，并显示各依赖服务状态。
+- `http://localhost/api/dip-api/dependencies` 可返回 MySQL、Redis、Kafka、OpenSearch 的检测结果。
+- `http://localhost/api/dip-api/messages` 可返回由初始化任务写入 MySQL 的演示数据。
+
 ### 7.1 总装配文件
 
 顶层 `compose.yml` 用于聚合各模块，例如：
@@ -183,12 +233,17 @@ include:
   - dip-services/app1.yml
 
 services:
-  nginx:
-    image: nginx:alpine
+  gateway:
+    image: caddy:alpine
     ports:
       - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+
+configs:
+  caddyfile:
+    file: ./Caddyfile
 ```
 
 ### 7.2 子文件拆分原则
@@ -253,9 +308,16 @@ services:
 外部访问分为以下两种模式：
 
 - 简单模式：服务直接通过 `ports` 暴露宿主机端口。
-- 标准模式：统一通过 Nginx 作为反向代理入口。
+- 标准模式：统一通过入口代理作为反向代理入口。
 
 内部默认采用统一入口模式，以减少宿主机暴露端口数量并统一路由规则管理。
+
+统一入口规范补充如下：
+
+- 默认应在顶层 `compose.yml` 中定义统一入口服务，例如 `gateway`。
+- 默认应在入口层统一维护路由规则，而不是由业务服务各自暴露宿主机端口。
+- 入口代理可选用 Nginx、Caddy 或其他轻量代理，但同一套部署中应保持单一实现。
+- 若项目采用 Caddy，则标准配置文件命名为 `Caddyfile`；若采用 Nginx，则标准配置文件命名为 `nginx.conf`。
 
 ### 9.3 启动依赖
 
@@ -346,7 +408,7 @@ Compose 不具备平台级治理能力，因此内部统一按以下约束理解
 - `compose.yml`
 - 子模块 Compose 文件
 - `.env.example`
-- `nginx.conf`
+- 统一入口配置文件，例如 `Caddyfile` 或 `nginx.conf`
 - 配置目录与密钥目录规范
 - 启停脚本
 - 部署说明文档
