@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pymysql
 import redis
 from fastapi import FastAPI, Request
@@ -7,6 +9,7 @@ from config import settings
 
 
 app = FastAPI(title=settings.title)
+UTC_PLUS_8 = timezone(timedelta(hours=8))
 
 
 def get_connection() -> pymysql.connections.Connection:
@@ -19,7 +22,34 @@ def get_connection() -> pymysql.connections.Connection:
         autocommit=True,
         cursorclass=pymysql.cursors.DictCursor,
         charset=settings.database.charset,
+        init_command="SET time_zone = '+08:00'",
     )
+
+
+def normalize_datetime_to_utc_plus_8(value: object) -> object:
+    if not isinstance(value, datetime):
+        return value
+
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC_PLUS_8)
+    else:
+        value = value.astimezone(UTC_PLUS_8)
+
+    return value.isoformat()
+
+
+def normalize_message_rows(
+    messages: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    normalized_messages: list[dict[str, object]] = []
+    for message in messages:
+        normalized_messages.append(
+            {
+                key: normalize_datetime_to_utc_plus_8(value)
+                for key, value in message.items()
+            }
+        )
+    return normalized_messages
 
 
 def get_redis_client() -> redis.Redis:
@@ -132,11 +162,13 @@ def read_messages() -> dict[str, object]:
     finally:
         connection.close()
 
+    normalized_messages = normalize_message_rows(messages)
+
     return {
         "app": settings.title,
         "database": settings.database.database,
-        "count": len(messages),
-        "messages": messages,
+        "count": len(normalized_messages),
+        "messages": normalized_messages,
     }
 
 
