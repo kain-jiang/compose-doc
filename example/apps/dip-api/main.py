@@ -46,6 +46,50 @@ def get_opensearch_client() -> OpenSearch:
     )
 
 
+def verify_opensearch(opensearch_client: OpenSearch) -> dict[str, object]:
+    info = opensearch_client.info()
+    index_name = settings.opensearch.index
+    document_id = f"{settings.title}-dependency-check"
+    document = {
+        "app": settings.title,
+        "category": "dependency-check",
+        "message": "OpenSearch write and search verification from dip-api",
+    }
+
+    if not opensearch_client.indices.exists(index=index_name):
+        opensearch_client.indices.create(index=index_name)
+
+    opensearch_client.index(
+        index=index_name,
+        id=document_id,
+        body=document,
+        refresh=True,
+    )
+
+    search_result = opensearch_client.search(
+        index=index_name,
+        body={
+            "size": 5,
+            "query": {
+                "term": {
+                    "category.keyword": "dependency-check",
+                }
+            },
+        },
+    )
+    hits = search_result.get("hits", {}).get("hits", [])
+
+    return {
+        "status": "ok",
+        "cluster_name": info.get("cluster_name"),
+        "version": info.get("version", {}).get("number"),
+        "index": index_name,
+        "document_id": document_id,
+        "hit_count": len(hits),
+        "sample_document": hits[0].get("_source") if hits else document,
+    }
+
+
 @app.get("/")
 def read_root() -> dict[str, object]:
     return {
@@ -153,12 +197,7 @@ def read_dependencies() -> dict[str, object]:
 
     try:
         opensearch_client = get_opensearch_client()
-        info = opensearch_client.info()
-        dependencies["opensearch"] = {
-            "status": "ok",
-            "cluster_name": info.get("cluster_name"),
-            "version": info.get("version", {}).get("number"),
-        }
+        dependencies["opensearch"] = verify_opensearch(opensearch_client)
     except Exception as exc:
         dependencies["opensearch"] = {"status": "error", "detail": str(exc)}
 

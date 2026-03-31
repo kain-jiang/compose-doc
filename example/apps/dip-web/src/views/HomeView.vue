@@ -28,6 +28,14 @@ type DependencyItem = {
   offset?: number;
   cluster_name?: string;
   version?: string;
+  index?: string;
+  document_id?: string;
+  hit_count?: number;
+  sample_document?: {
+    app?: string;
+    category?: string;
+    message?: string;
+  };
 };
 
 type DependencyResponse = {
@@ -85,11 +93,15 @@ const serviceCards = computed(() => {
     {
       key: "opensearch",
       title: "OpenSearch",
-      subtitle: "集群信息读取",
+      subtitle: "写入与检索测试",
       lines: items.opensearch?.status === "ok"
         ? [
             `集群: ${items.opensearch.cluster_name ?? "-"}`,
             `版本: ${items.opensearch.version ?? "-"}`,
+            `索引: ${items.opensearch.index ?? "-"}`,
+            `文档: ${items.opensearch.document_id ?? "-"}`,
+            `命中数: ${items.opensearch.hit_count ?? "-"}`,
+            `示例消息: ${items.opensearch.sample_document?.message ?? "-"}`,
           ]
         : [items.opensearch?.detail ?? "等待接口返回"],
       status: items.opensearch?.status ?? "unknown",

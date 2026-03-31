@@ -35,6 +35,7 @@ class OpenSearchSettings:
     hosts: list[str]
     use_ssl: bool
     verify_certs: bool
+    index: str
 
 
 @dataclass(frozen=True)
@@ -78,6 +79,7 @@ def load_settings() -> AppSettings:
             hosts=list(opensearch.get("hosts", ["http://opensearch:9200"])),
             use_ssl=bool(opensearch.get("use_ssl", False)),
             verify_certs=bool(opensearch.get("verify_certs", False)),
+            index=opensearch.get("index", "dip-demo"),
         ),
     )
 

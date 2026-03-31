@@ -41,3 +41,4 @@ configs:
           - http://opensearch:9200
         use_ssl: false
         verify_certs: false
+        index: dip-demo
