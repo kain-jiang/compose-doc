@@ -146,12 +146,12 @@ deploy/
     kafka.yml
     opensearch.yml
   core-services/
-    app1.yml
-    app2.yml
-    app3.yml
+    core-app1.yml
+    core-app2.yml
   dip-services/
-    app1.yml
-    app2.yml
+    dip-db-init.yml
+    dip-api.yml
+    dip-web.yml
   configs/
     common/
     app1/
@@ -191,12 +191,13 @@ deploy/
 - 顶层编排依赖 `compose.yml` 的 `include` 聚合能力。
 - 统一入口默认示例采用 `Caddy`，对应配置文件为 `Caddyfile`。
 - `opensearch` 这类服务在单机场景下通常需要显式补充启动参数，例如 JVM 内存参数与健康检查。
+- 初始化类服务可通过独立 SQL 文件或脚本文件挂载注入容器，而不是将全部初始化逻辑内嵌在应用代码中。
 
-### 7.05 快速开始
+### 7.1 快速开始
 
 以仓库中的 `example/` 为例，可按以下步骤完成最小化验证：
 
-1. 进入 `example/` 所在目录对应的部署根目录。
+1. 进入仓库根目录。
 2. 执行 `docker compose -f example/compose.yml config` 完成静态校验。
 3. 执行 `docker compose -f example/compose.yml up -d` 启动整套示例服务。
 4. 打开 `http://localhost/dip/` 查看前端演示页面。
@@ -208,7 +209,7 @@ deploy/
 docker compose -f example/compose.yml down
 ```
 
-### 7.06 快速验证
+### 7.2 快速验证
 
 `example/` 参考实现至少应满足以下快速验证结果：
 
@@ -218,7 +219,7 @@ docker compose -f example/compose.yml down
 - `http://localhost/api/dip-api/dependencies` 可返回 MySQL、Redis、Kafka、OpenSearch 的检测结果。
 - `http://localhost/api/dip-api/messages` 可返回由初始化任务写入 MySQL 的演示数据。
 
-### 7.1 总装配文件
+### 7.3 总装配文件
 
 顶层 `compose.yml` 用于聚合各模块，例如：
 
@@ -226,11 +227,13 @@ docker compose -f example/compose.yml down
 include:
   - data-services/mysql.yml
   - data-services/redis.yml
+  - data-services/opensearch.yml
   - data-services/kafka.yml
-  - core-services/app1.yml
-  - core-services/app2.yml
-  - core-services/app3.yml
-  - dip-services/app1.yml
+  - core-services/core-app1.yml
+  - core-services/core-app2.yml
+  - dip-services/dip-db-init.yml
+  - dip-services/dip-api.yml
+  - dip-services/dip-web.yml
 
 services:
   gateway:
@@ -246,16 +249,16 @@ configs:
     file: ./Caddyfile
 ```
 
-### 7.2 子文件拆分原则
+### 7.4 子文件拆分原则
 
 子文件拆分应遵循以下规则：
 
 - 一个服务一个文件，或一组强耦合服务一个文件。
 - 数据服务单独维护，不与业务服务混合。
-- 业务服务仅区分为 `core-services` 与 `dip-services` 两类目录。
+- 服务文件按 `data-services`、`core-services`、`dip-services` 三层目录组织，其中业务服务仅区分为 `core-services` 与 `dip-services` 两类目录。
 - 每个文件应尽量最小化，只保留本服务必要定义。
 
-### 7.3 服务命名规范
+### 7.5 服务命名规范
 
 服务命名应遵循以下原则：
 
@@ -272,13 +275,13 @@ configs:
 
 - 通用环境变量：`.env`
 - 服务级环境变量：`env_file`
-- 结构化配置：文件挂载
+- 结构化配置：`configs` 或文件挂载
 - 密钥配置：独立文件挂载
 
 ### 8.2 配置使用原则
 
 - 非敏感配置优先使用环境变量。
-- 结构化配置优先采用挂载文件。
+- 结构化配置优先采用 `configs` 或挂载文件。
 - 敏感配置不直接写入 Compose 文件。
 - 配置变更应可追踪、可回滚。
 
@@ -318,6 +321,7 @@ configs:
 - 默认应在入口层统一维护路由规则，而不是由业务服务各自暴露宿主机端口。
 - 入口代理可选用 Nginx、Caddy 或其他轻量代理，但同一套部署中应保持单一实现。
 - 若项目采用 Caddy，则标准配置文件命名为 `Caddyfile`；若采用 Nginx，则标准配置文件命名为 `nginx.conf`。
+- 前端单页应用若仍在容器内使用 Nginx 提供静态文件服务，其容器内 `nginx.conf` 不等同于顶层统一入口配置文件。
 
 ### 9.3 启动依赖
 

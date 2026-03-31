@@ -3,6 +3,9 @@ services:
     build:
       context: ../apps/dip-db-init
     restart: "no"
+    configs:
+      - source: dip-db-init-sql
+        target: /app/init.sql
     depends_on:
       mysql:
         condition: service_healthy
@@ -14,3 +17,7 @@ services:
       APP_DATABASE: dip_demo
       APP_USER: dip_user
       APP_PASSWORD: dip_password
+
+configs:
+  dip-db-init-sql:
+    file: ../apps/dip-db-init/init.sql

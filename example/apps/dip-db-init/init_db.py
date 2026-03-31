@@ -1,5 +1,6 @@
 import os
 import time
+from pathlib import Path
 
 import pymysql
 
@@ -13,6 +14,7 @@ APP_USER = os.getenv("APP_USER", "dip_user")
 APP_PASSWORD = os.getenv("APP_PASSWORD", "dip_password")
 MAX_RETRIES = int(os.getenv("DB_INIT_MAX_RETRIES", "30"))
 RETRY_INTERVAL = int(os.getenv("DB_INIT_RETRY_INTERVAL", "2"))
+SQL_PATH = Path(os.getenv("DB_INIT_SQL_PATH", "/app/init.sql"))
 
 
 def connect() -> pymysql.connections.Connection:
@@ -41,43 +43,26 @@ def wait_for_mysql() -> pymysql.connections.Connection:
     raise RuntimeError(f"MySQL did not become ready: {last_error}")
 
 
+def load_sql_script() -> str:
+    sql_template = SQL_PATH.read_text(encoding="utf-8")
+    return (
+        sql_template.replace("{{APP_DATABASE}}", APP_DATABASE)
+        .replace("{{APP_USER}}", APP_USER)
+        .replace("{{APP_PASSWORD}}", APP_PASSWORD)
+    )
+
+
 def initialize_database(connection: pymysql.connections.Connection) -> None:
+    sql_script = load_sql_script()
+    statements = [
+        statement.strip()
+        for statement in sql_script.split(";")
+        if statement.strip()
+    ]
+
     with connection.cursor() as cursor:
-        cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{APP_DATABASE}`")
-        cursor.execute(
-            f"CREATE USER IF NOT EXISTS '{APP_USER}'@'%' IDENTIFIED BY '{APP_PASSWORD}'"
-        )
-        cursor.execute(
-            f"ALTER USER '{APP_USER}'@'%' IDENTIFIED BY '{APP_PASSWORD}'"
-        )
-        cursor.execute(
-            f"GRANT ALL PRIVILEGES ON `{APP_DATABASE}`.* TO '{APP_USER}'@'%'"
-        )
-        cursor.execute("FLUSH PRIVILEGES")
-        cursor.execute(f"USE `{APP_DATABASE}`")
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS demo_messages (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                title VARCHAR(128) NOT NULL,
-                content TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        cursor.execute("SELECT COUNT(*) FROM demo_messages")
-        row_count = cursor.fetchone()[0]
-        if row_count == 0:
-            cursor.executemany(
-                """
-                INSERT INTO demo_messages (title, content)
-                VALUES (%s, %s)
-                """,
-                [
-                    ("welcome", "dip-db-init inserted the first demo record"),
-                    ("status", "dip-api can now read MySQL data through /api/dip-api/messages"),
-                ],
-            )
+        for statement in statements:
+            cursor.execute(statement)
 
 
 def main() -> None:
