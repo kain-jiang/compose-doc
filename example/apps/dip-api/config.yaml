@@ -6,3 +6,15 @@ database:
   password: dip_password
   database: dip_demo
   charset: utf8mb4
+redis:
+  host: redis
+  port: 6379
+  db: 0
+kafka:
+  bootstrap_servers: kafka:9092
+  topic: dip-demo
+opensearch:
+  hosts:
+    - http://opensearch:9200
+  use_ssl: false
+  verify_certs: false

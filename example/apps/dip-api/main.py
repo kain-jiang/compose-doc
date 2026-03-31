@@ -1,5 +1,8 @@
 import pymysql
+import redis
 from fastapi import FastAPI, Request
+from kafka import KafkaProducer
+from opensearchpy import OpenSearch
 from config import settings
 
 
@@ -19,6 +22,30 @@ def get_connection() -> pymysql.connections.Connection:
     )
 
 
+def get_redis_client() -> redis.Redis:
+    return redis.Redis(
+        host=settings.redis.host,
+        port=settings.redis.port,
+        db=settings.redis.db,
+        decode_responses=True,
+    )
+
+
+def get_kafka_producer() -> KafkaProducer:
+    return KafkaProducer(
+        bootstrap_servers=settings.kafka.bootstrap_servers,
+        value_serializer=lambda value: value.encode("utf-8"),
+    )
+
+
+def get_opensearch_client() -> OpenSearch:
+    return OpenSearch(
+        hosts=settings.opensearch.hosts,
+        use_ssl=settings.opensearch.use_ssl,
+        verify_certs=settings.opensearch.verify_certs,
+    )
+
+
 @app.get("/")
 def read_root() -> dict[str, object]:
     return {
@@ -27,14 +54,22 @@ def read_root() -> dict[str, object]:
         "routes": [
             "/",
             "/healthz",
+            "/api/dip-api/dependencies",
             "/api/dip-api/{path:path}",
         ],
     }
 
 
 @app.get("/healthz")
-def healthcheck() -> dict[str, str]:
-    return {"status": "ok"}
+def healthcheck() -> dict[str, object]:
+    dependency_status = read_dependencies()
+    overall_status = "ok" if all(
+        item["status"] == "ok" for item in dependency_status["dependencies"].values()
+    ) else "degraded"
+    return {
+        "status": overall_status,
+        **dependency_status,
+    }
 
 
 @app.get("/api/dip-api/messages")
@@ -58,6 +93,78 @@ def read_messages() -> dict[str, object]:
         "database": settings.database.database,
         "count": len(messages),
         "messages": messages,
+    }
+
+
+@app.get("/api/dip-api/dependencies")
+def read_dependencies() -> dict[str, object]:
+    dependencies: dict[str, dict[str, object]] = {}
+
+    try:
+        connection = get_connection()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1 AS ok")
+                cursor.fetchone()
+            dependencies["mysql"] = {
+                "status": "ok",
+                "database": settings.database.database,
+            }
+        finally:
+            connection.close()
+    except Exception as exc:
+        dependencies["mysql"] = {"status": "error", "detail": str(exc)}
+
+    try:
+        redis_client = get_redis_client()
+        redis_client.ping()
+        cache_key = "dip-api:demo:last-check"
+        redis_client.set(cache_key, settings.title)
+        dependencies["redis"] = {
+            "status": "ok",
+            "host": settings.redis.host,
+            "port": settings.redis.port,
+            "sample_key": cache_key,
+            "sample_value": redis_client.get(cache_key),
+        }
+    except Exception as exc:
+        dependencies["redis"] = {"status": "error", "detail": str(exc)}
+
+    try:
+        producer = get_kafka_producer()
+        try:
+            future = producer.send(
+                settings.kafka.topic,
+                f"{settings.title} dependency check",
+            )
+            metadata = future.get(timeout=10)
+            dependencies["kafka"] = {
+                "status": "ok",
+                "bootstrap_servers": settings.kafka.bootstrap_servers,
+                "topic": metadata.topic,
+                "partition": metadata.partition,
+                "offset": metadata.offset,
+            }
+        finally:
+            producer.flush()
+            producer.close()
+    except Exception as exc:
+        dependencies["kafka"] = {"status": "error", "detail": str(exc)}
+
+    try:
+        opensearch_client = get_opensearch_client()
+        info = opensearch_client.info()
+        dependencies["opensearch"] = {
+            "status": "ok",
+            "cluster_name": info.get("cluster_name"),
+            "version": info.get("version", {}).get("number"),
+        }
+    except Exception as exc:
+        dependencies["opensearch"] = {"status": "error", "detail": str(exc)}
+
+    return {
+        "app": settings.title,
+        "dependencies": dependencies,
     }
 
 

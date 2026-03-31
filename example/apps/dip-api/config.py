@@ -18,9 +18,32 @@ class DatabaseSettings:
 
 
 @dataclass(frozen=True)
+class RedisSettings:
+    host: str
+    port: int
+    db: int
+
+
+@dataclass(frozen=True)
+class KafkaSettings:
+    bootstrap_servers: str
+    topic: str
+
+
+@dataclass(frozen=True)
+class OpenSearchSettings:
+    hosts: list[str]
+    use_ssl: bool
+    verify_certs: bool
+
+
+@dataclass(frozen=True)
 class AppSettings:
     title: str
     database: DatabaseSettings
+    redis: RedisSettings
+    kafka: KafkaSettings
+    opensearch: OpenSearchSettings
 
 
 def load_settings() -> AppSettings:
@@ -28,6 +51,10 @@ def load_settings() -> AppSettings:
         data = yaml.safe_load(config_file) or {}
 
     database = data.get("database", {})
+    redis = data.get("redis", {})
+    kafka = data.get("kafka", {})
+    opensearch = data.get("opensearch", {})
+
     return AppSettings(
         title=data.get("title", "dip-api"),
         database=DatabaseSettings(
@@ -37,6 +64,20 @@ def load_settings() -> AppSettings:
             password=database.get("password", "dip_password"),
             database=database.get("database", "dip_demo"),
             charset=database.get("charset", "utf8mb4"),
+        ),
+        redis=RedisSettings(
+            host=redis.get("host", "redis"),
+            port=int(redis.get("port", 6379)),
+            db=int(redis.get("db", 0)),
+        ),
+        kafka=KafkaSettings(
+            bootstrap_servers=kafka.get("bootstrap_servers", "kafka:9092"),
+            topic=kafka.get("topic", "dip-demo"),
+        ),
+        opensearch=OpenSearchSettings(
+            hosts=list(opensearch.get("hosts", ["http://opensearch:9200"])),
+            use_ssl=bool(opensearch.get("use_ssl", False)),
+            verify_certs=bool(opensearch.get("verify_certs", False)),
         ),
     )
 
